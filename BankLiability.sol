@@ -7,12 +7,12 @@ contract BankLiability is Context{
     
     int256 public totalLiability;
     
-    mapping (address => bool) _banks;
+    mapping (address => bool) public _banks;
     mapping (address => int256) public _liabilities;
     mapping (address => mapping (address => uint256)) _confirmRemittance;
     
     event TransferRequest(address indexed sender, address indexed recipient, uint256 amount);
-    event Confirm(address indexed sender, address indexed recipient, uint256 amount);
+    event Accept(address indexed sender, address indexed recipient, uint256 amount);
 
     modifier onlyOwner() {
         require(_msgSender() == _owner);
@@ -29,23 +29,24 @@ contract BankLiability is Context{
     }
     
     function transferRequest(address recipient, uint256 amount) public onlyBank returns (bool) {
-        require(recipient != address(0), "Liability: transfer to the zero address");
+        require(_banks[recipient], "Liability: You can only request to transfer liability to banks");
         require(amount != 0, "Liability: transfer zero amount");
+        require(_confirmRemittance[_msgSender()][recipient] == 0, "Liability: You cannot send multiple requests to the same bank");
         _confirmRemittance[_msgSender()][recipient] = amount;
         
-
         emit TransferRequest(_msgSender(), recipient, amount);
         return true;
     }
     
-    function confirm(address sender) public onlyBank returns (bool) {
-        require(sender != address(0), "Liability: transfer to the zero address");
+    function accept(address sender) public onlyBank returns (bool) {
+        require(_banks[sender], "Liability: You can only accept the request from banks");
         uint256 amount = _confirmRemittance[sender][_msgSender()];
-        require(amount != 0, "Liability: The sender didn't send the transfer Request");
+        require(amount != 0, "Liability: The sender didn't send the transfer request");
         _liabilities[sender] += int256(amount);
         _liabilities[_msgSender()] -= int256(amount);
-
-        emit Confirm(_msgSender(), sender, amount);
+        delete _confirmRemittance[sender][_msgSender()];
+        
+        emit Accept(_msgSender(), sender, amount);
         return true;
     }
     
