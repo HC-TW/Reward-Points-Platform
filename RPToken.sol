@@ -402,6 +402,7 @@ contract RPToken is Context, IERC20, IERC20Metadata {
     
     function confirm(address merchant, uint256 amount) public onlyUser returns (bool) {
         require(_merchants[merchant], "You can only confirm arrival to a merchant");
+        require(_confirmArrivals[_msgSender()][merchant] > 0, "You didn't redeem any commodity from this merchant");
         _transfer(address(this), merchant, amount);        
         _confirmArrivals[_msgSender()][merchant] -= amount;
         if (_confirmArrivals[_msgSender()][merchant] == 0) {
