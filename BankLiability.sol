@@ -12,6 +12,7 @@ contract BankLiability is Context{
     mapping (address => mapping (address => uint256)) _confirmRemittance;
     
     event TransferRequest(address indexed sender, address indexed recipient, uint256 amount);
+    event RevokeRequest(address indexed sender, address indexed recipient);
     event Accept(address indexed sender, address indexed recipient, uint256 amount);
 
     modifier onlyOwner() {
@@ -35,6 +36,15 @@ contract BankLiability is Context{
         _confirmRemittance[_msgSender()][recipient] = amount;
         
         emit TransferRequest(_msgSender(), recipient, amount);
+        return true;
+    }
+    
+    function revokeRequest(address recipient) public onlyBank returns (bool) {
+        require(_banks[recipient], "Liability: You can only revoke request to banks");
+        require(_confirmRemittance[_msgSender()][recipient] > 0, "Liability: You cannot revoke requests before sending requests");
+        _confirmRemittance[_msgSender()][recipient] = 0;
+        
+        emit RevokeRequest(_msgSender(), recipient);
         return true;
     }
     
