@@ -4,7 +4,7 @@ import "./Context.sol";
 
 contract BankLiability is Context{
     address public _owner;
-    
+    address public RPToken;
     int256 public totalLiability;
     
     mapping (address => bool) public _banks;
@@ -27,6 +27,10 @@ contract BankLiability is Context{
     
     constructor() {
         _owner = _msgSender();
+    }
+    
+    function setRPTokenAddr(address addr) public onlyOwner {
+        RPToken = addr;    
     }
     
     function transferRequest(address recipient, uint256 amount) public onlyBank returns (bool) {
@@ -60,21 +64,25 @@ contract BankLiability is Context{
         return true;
     }
     
-    function addBank(address addr) public onlyOwner {
+    function addBank(address addr) public {
+        require(_msgSender() == _owner || _msgSender() == RPToken);
         _banks[addr] = true;
     }
     
-    function removeBank(address addr) public onlyOwner {
+    function removeBank(address addr) public {
+        require(_msgSender() == _owner || _msgSender() == RPToken);
         delete _banks[addr];
     }
     
-    function increaseLiability(address addr, uint256 amount) public onlyOwner {
+    function increaseLiability(address addr, uint256 amount) public {
+        require(_msgSender() == _owner || _msgSender() == RPToken);
         require(amount != 0, "Liability: increase zero amount");
         _liabilities[addr] -= int256(amount);
         totalLiability -= int256(amount);
     }
     
-    function decreaseLiability(address addr, uint256 amount) public onlyOwner {
+    function decreaseLiability(address addr, uint256 amount) public {
+        require(_msgSender() == _owner || _msgSender() == RPToken);
         require(amount != 0, "Liability: decrease zero amount");
         _liabilities[addr] += int256(amount);
         totalLiability += int256(amount);
