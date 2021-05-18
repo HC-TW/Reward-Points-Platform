@@ -32,7 +32,9 @@ import "./Context.sol";
  */
 contract RPToken is Context, IERC20, IERC20Metadata {
     address public _owner;
-    
+    address public _Credit;
+    MiniBankLiability private bl;
+
     mapping (address => uint256) private _balances;
     mapping (address => mapping (address => uint256)) private _allowances;
     
@@ -339,20 +341,24 @@ contract RPToken is Context, IERC20, IERC20Metadata {
     
     /* User-defined function here */
     
-    BankLiability private bl;
-    
     function loadBankLiability(address addr) public onlyOwner {
-        bl = BankLiability(addr);
+        bl = MiniBankLiability(addr);
+    }
+
+    function setCreditAddr(address addr) public onlyOwner {
+        _Credit = addr;
     }
     
     function addBank(address addr) public onlyOwner {
         _banks[addr] = true;
-        bl.addBank(addr);
     }
     
     function removeBank(address addr) public onlyOwner {
         delete _banks[addr];
-        bl.removeBank(addr);
+    }
+
+    function isBank(address addr) public view returns (bool) {
+        return _banks[addr];
     }
     
     function addIssuer(address addr) public onlyOwner {
@@ -379,17 +385,20 @@ contract RPToken is Context, IERC20, IERC20Metadata {
         delete _merchants[addr];
     }
     
-    function deliver(address issuer, uint256 amount) public onlyBank returns (bool) {
+    function deliver(address issuer, uint256 amount) public returns (bool) {
+        require(_banks[_msgSender()] || _msgSender() == _Credit);
         require(_issuers[issuer], "You can only deliver RPs to a issuer");
         require(address(bl) != address(0), "BankLiability contract hasn't been loaded");
         _mint(issuer, amount);
         bl.increaseLiability(_msgSender(), amount);
+        
         return true;
     }
     
     function issue(address user, uint256 amount) public onlyIssuer returns (bool) {
         require(_users[user], "You can only issue RPs to a user");
         _transfer(_msgSender(), user, amount);        
+
         return true;
     }
     
@@ -397,6 +406,7 @@ contract RPToken is Context, IERC20, IERC20Metadata {
         require(_merchants[merchant], "You can only redeem goods from a merchant");
         _transfer(_msgSender(), address(this), amount);        
         _confirmArrivals[_msgSender()][merchant] += amount;
+
         return true;
     }
     
@@ -405,9 +415,7 @@ contract RPToken is Context, IERC20, IERC20Metadata {
         require(_confirmArrivals[_msgSender()][merchant] > 0, "You didn't redeem any commodity from this merchant");
         _transfer(address(this), merchant, amount);        
         _confirmArrivals[_msgSender()][merchant] -= amount;
-        if (_confirmArrivals[_msgSender()][merchant] == 0) {
-            delete(_confirmArrivals[_msgSender()][merchant]);
-        }
+    
         return true;
     }
     
@@ -416,14 +424,12 @@ contract RPToken is Context, IERC20, IERC20Metadata {
         require(address(bl) != address(0), "BankLiability contract hasn't been loaded");
         _burn(_msgSender(), amount);
         bl.decreaseLiability(bank, amount);
+
         return true;
     }
 }
 
-contract BankLiability {
-    
-    function addBank(address) public { }
-    function removeBank(address) public { }
+contract MiniBankLiability {
     function increaseLiability(address, uint256) public { }
     function decreaseLiability(address, uint256) public { }
 }
