@@ -11,7 +11,7 @@ contract BankLiability is Context {
     int256 public _totalLiability;
 
     mapping(address => int256) public _liabilities;
-    mapping(address => mapping(address => uint256)) _confirmRemittance;
+    mapping(address => mapping(address => uint256)) private _confirmRemittance;
 
     event TransferRequest(
         address indexed sender,

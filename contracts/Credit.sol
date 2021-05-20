@@ -9,7 +9,8 @@ contract Credit is Context {
         // address bank;
         uint256 loanAmount;
         uint256 pointsAmount;
-        uint256 dueDate;
+        uint256 timestamp;
+        uint16 monthN;
         uint16 annualInterestRate; // This value should be divided by 1000. Ex: 3% = 30 / 1000
         uint256 loanBalance;
         string option; // Loan case or something else
@@ -24,15 +25,16 @@ contract Credit is Context {
     address public _BankLiabilityAddr;
     C_RPToken private rp;
 
-    mapping(address => mapping(address => loanRecord[])) _loanRecords;
-    mapping(address => keyList) _bankToBorrowers;
+    mapping(address => mapping(address => loanRecord[])) private _loanRecords;
+    mapping(address => keyList) private _bankToBorrowers;
 
     event Loan(
         address indexed borrower,
         address indexed bank,
         uint256 loanAmount,
         uint256 pointsAmount,
-        uint256 dueDate,
+        uint256 monthlyDueDate,
+        uint16 monthN,
         uint16 annualInterestRate,
         uint256 loanBalance
     );
@@ -60,14 +62,17 @@ contract Credit is Context {
         address borrower,
         uint256 loanAmount,
         uint256 pointsAmount,
+        uint16 monthN,
         uint16 annualInterestRate,
         string memory option
     ) public onlyBank {
-        uint256 dueDate = block.timestamp + 30 days;
+        //uint256 monthlyDueDate = block.timestamp + 30 days;
+        uint256 timestamp = block.timestamp;
         _loanRecords[_msgSender()][borrower].push() = loanRecord(
             loanAmount,
             pointsAmount,
-            dueDate,
+            timestamp,
+            monthN,
             annualInterestRate,
             loanAmount,
             option
@@ -78,7 +83,7 @@ contract Credit is Context {
         }
         rp.deliver(borrower, pointsAmount);
 
-        emit Loan(borrower, _msgSender(), loanAmount, pointsAmount, dueDate, annualInterestRate, loanAmount);
+        emit Loan(borrower, _msgSender(), loanAmount, pointsAmount, timestamp, monthN, annualInterestRate, loanAmount);
     }
 
     function changeLoanLender(address oldBank, address newBank) public {
@@ -89,6 +94,11 @@ contract Credit is Context {
             delete _loanRecords[oldBank][keys[i]];
         }
         delete _bankToBorrowers[oldBank];
+    }
+
+    function getLoanRecord(address bank, address borrower, uint16 index) public view returns (loanRecord memory) {
+        require(_msgSender() == bank || _msgSender() == borrower, "You can only get records related to yourself");
+        return _loanRecords[bank][borrower][index];
     }
 }
 

@@ -384,7 +384,7 @@ contract RPToken is Context, IERC20, IERC20Metadata {
     function removeMerchant(address addr) public onlyOwner {
         delete _merchants[addr];
     }
-    
+    // Bank -> Issuer
     function deliver(address issuer, uint256 amount) public returns (bool) {
         require(_banks[_msgSender()] || _msgSender() == _Credit);
         require(_issuers[issuer], "You can only deliver RPs to a issuer");
@@ -394,14 +394,14 @@ contract RPToken is Context, IERC20, IERC20Metadata {
         
         return true;
     }
-    
+    // Issuer -> User
     function issue(address user, uint256 amount) public onlyIssuer returns (bool) {
         require(_users[user], "You can only issue RPs to a user");
         _transfer(_msgSender(), user, amount);        
 
         return true;
     }
-    
+    // User -> Contract (-> Merchant)
     function redeem(address merchant, uint256 amount) public onlyUser returns (bool) {
         require(_merchants[merchant], "You can only redeem goods from a merchant");
         _transfer(_msgSender(), address(this), amount);        
@@ -409,7 +409,7 @@ contract RPToken is Context, IERC20, IERC20Metadata {
 
         return true;
     }
-    
+    // (User ->) Contract -> Merchant
     function confirm(address merchant, uint256 amount) public onlyUser returns (bool) {
         require(_merchants[merchant], "You can only confirm arrival to a merchant");
         require(_confirmArrivals[_msgSender()][merchant] > 0, "You didn't redeem any commodity from this merchant");
@@ -418,7 +418,7 @@ contract RPToken is Context, IERC20, IERC20Metadata {
     
         return true;
     }
-    
+    // Merchant -> Bank
     function sell(address bank, uint256 amount) public onlyMerchant returns (bool) {
         require(_banks[bank], "You can only sell RPs to a bank");
         require(address(bl) != address(0), "BankLiability contract hasn't been loaded");
