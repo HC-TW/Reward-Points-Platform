@@ -1,4 +1,5 @@
 // "SPDX-License-Identifier: UNLICENSED"
+
 pragma solidity ^0.8.0;
 
 import "./Context.sol";
@@ -6,8 +7,8 @@ import "./Context.sol";
 contract BankLiability is Context {
     address public _owner;
     address public _RPToken;
-    MiniRPToken private rp;
-    MiniCredit private credit;
+    BL_RPToken private _rp;
+    BL_Credit private _credit;
     int256 public _totalLiability;
 
     mapping(address => int256) public _liabilities;
@@ -31,18 +32,18 @@ contract BankLiability is Context {
     }
 
     modifier onlyBank() {
-        require(rp._banks(_msgSender()), "You are not a bank");
+        require(_rp._banks(_msgSender()), "You are not a bank");
         _;
     }
 
     constructor(address RPTokenAddr) {
         _owner = _msgSender();
         _RPToken = RPTokenAddr;
-        rp = MiniRPToken(RPTokenAddr);
+        _rp = BL_RPToken(RPTokenAddr);
     }
 
     function loadCredit(address addr) public onlyOwner {
-        credit = MiniCredit(addr);
+        _credit = BL_Credit(addr);
     }
 
     function transferRequest(address recipient, uint256 amount)
@@ -51,7 +52,7 @@ contract BankLiability is Context {
         returns (bool)
     {
         require(
-            rp._banks(recipient),
+            _rp._banks(recipient),
             "Liability: You can only request to transfer liability to banks"
         );
         require(amount != 0, "Liability: transfer zero amount");
@@ -67,7 +68,7 @@ contract BankLiability is Context {
 
     function revokeRequest(address recipient) public onlyBank returns (bool) {
         require(
-            rp._banks(recipient),
+            _rp._banks(recipient),
             "Liability: You can only revoke request to banks"
         );
         require(
@@ -82,7 +83,7 @@ contract BankLiability is Context {
 
     function accept(address sender) public onlyBank returns (bool) {
         require(
-            rp._banks(sender),
+            _rp._banks(sender),
             "Liability: You can only accept the request from banks"
         );
         uint256 amount = _confirmRemittance[sender][_msgSender()];
@@ -94,7 +95,7 @@ contract BankLiability is Context {
         _liabilities[_msgSender()] -= int256(amount);
         delete _confirmRemittance[sender][_msgSender()];
 
-        credit.changeLoanLender(sender, _msgSender());
+        _credit.changeLoanLender(sender, _msgSender());
         
         emit Accept(_msgSender(), sender, amount);
         return true;
@@ -115,10 +116,10 @@ contract BankLiability is Context {
     }
 }
 
-contract MiniRPToken {
+contract BL_RPToken {
     function _banks(address) public view returns (bool) {}
 }
 
-contract MiniCredit {
+contract BL_Credit {
     function changeLoanLender(address, address) public {}
 }

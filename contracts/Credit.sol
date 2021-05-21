@@ -1,4 +1,5 @@
 // "SPDX-License-Identifier: UNLICENSED"
+
 pragma solidity ^0.8.0;
 
 import "./Context.sol";
@@ -23,7 +24,7 @@ contract Credit is Context {
 
     address public _owner;
     address public _BankLiabilityAddr;
-    C_RPToken private rp;
+    C_RPToken private _rp;
 
     mapping(address => mapping(address => loanRecord[])) private _loanRecords;
     mapping(address => keyList) private _bankToBorrowers;
@@ -33,11 +34,13 @@ contract Credit is Context {
         address indexed bank,
         uint256 loanAmount,
         uint256 pointsAmount,
-        uint256 monthlyDueDate,
+        uint256 timestamp,
         uint16 monthN,
         uint16 annualInterestRate,
         uint256 loanBalance
     );
+
+    event Repay(address indexed borrower, address indexed bank, uint16 index, uint256 amount);
 
     modifier onlyOwner() {
         require(_msgSender() == _owner, "You are not a contract owner");
@@ -45,13 +48,13 @@ contract Credit is Context {
     }
 
     modifier onlyBank() {
-        require(rp._banks(_msgSender()), "You are not a bank");
+        require(_rp._banks(_msgSender()), "You are not a bank");
         _;
     }
 
     constructor(address RPTokenAddr) {
         _owner = _msgSender();
-        rp = C_RPToken(RPTokenAddr);
+        _rp = C_RPToken(RPTokenAddr);
     }
 
     function setBankLiabilityAddr(address addr) public onlyOwner {
@@ -81,9 +84,16 @@ contract Credit is Context {
             _bankToBorrowers[_msgSender()].keys.push(borrower);
             _bankToBorrowers[_msgSender()].existing[borrower] = true;
         }
-        rp.deliver(borrower, pointsAmount);
+        _rp.deliver(borrower, pointsAmount);
 
         emit Loan(borrower, _msgSender(), loanAmount, pointsAmount, timestamp, monthN, annualInterestRate, loanAmount);
+    }
+
+    function repay(address borrower, uint16 index, uint256 amount) public onlyBank {
+        require(_loanRecords[_msgSender()][borrower][index].loanBalance >= amount, "Repay too much money");
+        _loanRecords[_msgSender()][borrower][index].loanBalance -= amount;
+
+        emit Repay(borrower, _msgSender(), index, amount);
     }
 
     function changeLoanLender(address oldBank, address newBank) public {
@@ -94,6 +104,18 @@ contract Credit is Context {
             delete _loanRecords[oldBank][keys[i]];
         }
         delete _bankToBorrowers[oldBank];
+    }
+
+    function getLoanBalanceOfBank() public view onlyBank returns (uint256) {
+        uint256 totalLoanBalance;
+        address[] memory keys = _bankToBorrowers[_msgSender()].keys;
+        for (uint256 i = 0; i < keys.length; i++) {
+            loanRecord[] memory loanRecords = _loanRecords[_msgSender()][keys[i]];
+            for (uint256 j = 0; j < loanRecords.length; j++) {
+                totalLoanBalance += loanRecords[j].loanBalance;
+            }
+        }
+        return totalLoanBalance;
     }
 
     function getLoanRecord(address bank, address borrower, uint16 index) public view returns (loanRecord memory) {
